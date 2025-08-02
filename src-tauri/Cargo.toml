@@ -1,0 +1,32 @@
+[package]
+name = "jx3-key-manager"
+version = "3.0.0"
+description = "剑网3改键工具"
+authors = ["咕涌"]
+license = ""
+repository = ""
+default-run = "jx3-key-manager"
+edition = "2021"
+rust-version = "1.60"
+
+[build-dependencies]
+tauri-build = { version = "1.5.0", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.5.0", features = [ "dialog-ask", "dialog-open", "fs-remove-dir", "fs-read-dir", "fs-create-dir", "fs-exists", "fs-write-file", "fs-copy-file", "fs-read-file", "dialog-message", "dialog-confirm", "fs-remove-file", "shell-open"] }
+
+[features]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]
+
+# 优化编译设置
+[profile.dev]
+incremental = true
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"

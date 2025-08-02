@@ -1,0 +1,10 @@
+/src-tauri/target/
+/node_modules/
+dist/
+.DS_Store
+*.log
+
+# Tauri build files
+/src-tauri/gen/
+/src-tauri/target/
+/src-tauri/Cargo.lock
