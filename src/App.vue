@@ -1,237 +1,273 @@
 <template>
-  <div class="app">
+  <el-container class="app-container">
     <!-- 顶部工具栏 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <button class="toolbar-btn" @click="showSettingsMenu = !showSettingsMenu" title="设置">
-          ⚙️ 设置
-        </button>
-        <button class="toolbar-btn" @click="showHelpMenu = !showHelpMenu" title="帮助">
-          ❓ 帮助
-        </button>
-      </div>
-    </div>
-
-    <!-- 设置菜单 -->
-    <div v-if="showSettingsMenu" class="dropdown-menu settings-menu">
-      <div class="menu-item" @click="changeBaseFolder">
-        📁 更改文件夹
-      </div>
-    </div>
-
-    <!-- 帮助菜单 -->
-    <div v-if="showHelpMenu" class="dropdown-menu help-menu">
-      <div class="menu-item" @click="showUsageHelp">
-        📖 使用帮助
-      </div>
-      <div class="menu-item" @click="showAbout">
-        ℹ️ 关于
-      </div>
-    </div>
-
-    <!-- 主内容区 - 紧凑布局 -->
-    <main class="main">
-      <div class="container">
-        <!-- 左侧：源账号配置 -->
-        <div class="panel source-panel">
-          <div class="panel-header">
-            <h2 class="panel-title">源账号配置</h2>
-          </div>
-          <div class="form-container">
-            <div class="form-row" v-for="(label, index) in labels" :key="index">
-              <label class="form-label">{{ label }}</label>
-              <select 
-                class="form-select" 
-                v-model="sourceSelections[index]"
-                @change="onSourceChange(index)"
-                :size="1"
-              >
-                <option value="">选择{{ label }}</option>
-                <option 
-                  v-for="option in sourceOptions[index]" 
-                  :key="option" 
-                  :value="option"
-                >
-                  {{ option }}
-                </option>
-              </select>
-            </div>
-            <button 
-              class="action-btn save-btn" 
-              @click="savePreset"
-              :disabled="!canSavePreset"
-            >
-              保存预设
-            </button>
-          </div>
+    <el-header class="app-header" height="60px">
+      <div class="header-content">
+        <div class="header-left">
+          <h1 class="app-title">
+            <el-icon><VideoPlay /></el-icon>
+            剑网3改键工具
+          </h1>
         </div>
+        <div class="header-right">
+          <el-dropdown @command="handleCommand" trigger="click">
+            <el-button type="primary" :icon="Setting">
+              设置 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="changeFolder" :icon="Folder">更改文件夹</el-dropdown-item>
+                <el-dropdown-item command="help" :icon="QuestionFilled">使用帮助</el-dropdown-item>
+                <el-dropdown-item command="about" :icon="InfoFilled">关于</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div>
+    </el-header>
+
+    <!-- 主内容区 -->
+    <el-main class="app-main">
+      <el-row :gutter="20" class="main-row">
+        <!-- 左侧：源账号配置 -->
+        <el-col :span="8">
+          <el-card class="config-card source-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <el-icon class="header-icon"><Upload /></el-icon>
+                <span>源账号配置</span>
+              </div>
+            </template>
+            
+            <el-form :model="sourceForm" label-position="top" class="config-form">
+              <el-form-item 
+                v-for="(label, index) in labels" 
+                :key="index"
+                :label="label"
+                class="form-item"
+              >
+                <el-select 
+                  v-model="sourceSelections[index]"
+                  :placeholder="`选择${label}`"
+                  @change="onSourceChange(index)"
+                  class="form-select"
+                  clearable
+                >
+                  <el-option
+                    v-for="option in sourceOptions[index]"
+                    :key="option"
+                    :label="option"
+                    :value="option"
+                  />
+                </el-select>
+              </el-form-item>
+              
+              <el-button 
+                type="primary" 
+                :icon="DocumentAdd"
+                @click="savePreset"
+                :disabled="!canSavePreset"
+                class="action-button"
+                size="large"
+              >
+                保存预设
+              </el-button>
+            </el-form>
+          </el-card>
+        </el-col>
 
         <!-- 中间：目标账号配置 -->
-        <div class="panel target-panel">
-          <div class="panel-header">
-            <h2 class="panel-title">目标账号配置</h2>
-          </div>
-          <div class="form-container">
-            <div class="form-row" v-for="(label, index) in labels" :key="index">
-              <label class="form-label">{{ label }}</label>
-              <select 
-                class="form-select" 
-                v-model="targetSelections[index]"
-                @change="onTargetChange(index)"
-                :size="1"
+        <el-col :span="8">
+          <el-card class="config-card target-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <el-icon class="header-icon"><Download /></el-icon>
+                <span>目标账号配置</span>
+              </div>
+            </template>
+            
+            <el-form :model="targetForm" label-position="top" class="config-form">
+              <el-form-item 
+                v-for="(label, index) in labels" 
+                :key="index"
+                :label="label"
+                class="form-item"
               >
-                <option value="">选择{{ label }}</option>
-                <option 
-                  v-for="option in targetOptions[index]" 
-                  :key="option" 
-                  :value="option"
+                <el-select 
+                  v-model="targetSelections[index]"
+                  :placeholder="`选择${label}`"
+                  @change="onTargetChange(index)"
+                  class="form-select"
+                  clearable
                 >
-                  {{ option }}
-                </option>
-              </select>
-            </div>
-            <button 
-              class="action-btn execute-btn" 
-              @click="executeKeyChange"
-              :disabled="!canExecute"
-            >
-              执行改键
-            </button>
-          </div>
-        </div>
+                  <el-option
+                    v-for="option in targetOptions[index]"
+                    :key="option"
+                    :label="option"
+                    :value="option"
+                  />
+                </el-select>
+              </el-form-item>
+              
+              <el-button 
+                type="success" 
+                :icon="Check"
+                @click="executeKeyChange"
+                :disabled="!canExecute"
+                class="action-button"
+                size="large"
+              >
+                执行改键
+              </el-button>
+            </el-form>
+          </el-card>
+        </el-col>
 
         <!-- 右侧：预设管理 -->
-        <div class="panel preset-panel">
-          <div class="panel-header">
-            <h2 class="panel-title">预设管理</h2>
-          </div>
-          <div class="preset-container">
-            <div class="preset-hint">双击加载，右键管理</div>
-            <div class="preset-list" v-if="presetNames.length > 0">
-              <div 
-                v-for="name in presetNames" 
-                :key="name"
-                class="preset-item"
-                @dblclick="loadPreset(name)"
-                @contextmenu.prevent="showPresetMenu($event, name)"
-              >
-                <div class="preset-name">{{ name }}</div>
-                <div class="preset-actions">
-                  <span class="preset-action-hint">双击</span>
-                </div>
+        <el-col :span="8">
+          <el-card class="config-card preset-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <el-icon class="header-icon"><Collection /></el-icon>
+                <span>预设管理</span>
               </div>
+            </template>
+            
+            <div class="preset-content">
+              <el-alert
+                title="双击加载预设，右键管理预设"
+                type="info"
+                :closable="false"
+                show-icon
+                class="preset-hint"
+              />
+              
+              <div v-if="presetNames.length > 0" class="preset-list">
+                <el-card 
+                  v-for="name in presetNames" 
+                  :key="name"
+                  class="preset-item"
+                  shadow="hover"
+                  @dblclick="loadPreset(name)"
+                  @contextmenu.prevent="showPresetMenu($event, name)"
+                >
+                  <div class="preset-item-content">
+                    <el-icon class="preset-icon"><Document /></el-icon>
+                    <span class="preset-name">{{ name }}</span>
+                    <el-tag size="small" type="info">双击</el-tag>
+                  </div>
+                </el-card>
+              </div>
+              
+              <el-empty v-else description="暂无预设" :image-size="80" />
             </div>
-            <div v-else class="preset-empty">
-              <div class="empty-text">暂无预设</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </main>
+          </el-card>
+        </el-col>
+      </el-row>
+    </el-main>
 
-    <!-- 右键菜单 -->
-    <div 
-      v-if="contextMenu.show" 
-      class="context-menu"
-      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-    >
-      <div class="context-menu-item" @click="renamePreset(contextMenu.presetName)">
-        重命名预设
-      </div>
-      <div class="context-menu-divider"></div>
-      <div class="context-menu-item delete-item" @click="deletePreset(contextMenu.presetName)">
-        删除预设
-      </div>
+  </el-container>
+
+  <!-- 右键菜单 -->
+  <div 
+    v-if="contextMenu.show"
+    class="context-menu"
+    :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+    @click.stop
+  >
+    <div class="context-menu-item" @click="handlePresetCommand('rename')">
+      <el-icon><Edit /></el-icon>
+      <span>重命名预设</span>
     </div>
-
-    <!-- 预设名称输入对话框 -->
-    <div v-if="showPresetDialog" class="dialog-overlay">
-      <div class="dialog">
-        <h3>保存预设</h3>
-        <div class="form-group">
-          <label class="label">预设名称</label>
-          <input 
-            v-model="presetNameInput" 
-            class="input" 
-            placeholder="请输入预设名称"
-            @keyup.enter="confirmSavePreset"
-            ref="presetInput"
-          />
-        </div>
-        <div class="dialog-buttons">
-          <button class="btn btn-secondary" @click="cancelSavePreset">取消</button>
-          <button class="btn btn-primary" @click="confirmSavePreset" :disabled="!presetNameInput.trim()">保存</button>
-        </div>
-      </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item danger-item" @click="handlePresetCommand('delete')">
+      <el-icon><Delete /></el-icon>
+      <span>删除预设</span>
     </div>
-
-    <!-- 重命名预设对话框 -->
-    <div v-if="showRenameDialog" class="dialog-overlay">
-      <div class="dialog">
-        <h3>重命名预设</h3>
-        <div class="form-group">
-          <label class="label">原名称</label>
-          <input 
-            :value="renamePresetName" 
-            class="input" 
-            disabled
-            style="background: var(--bg-accent); color: var(--fg-secondary);"
-          />
-        </div>
-        <div class="form-group">
-          <label class="label">新名称</label>
-          <input 
-            v-model="renameNewName" 
-            class="input" 
-            placeholder="请输入新的预设名称"
-            @keyup.enter="confirmRenamePreset"
-            id="renameInput"
-          />
-        </div>
-        <div class="dialog-buttons">
-          <button class="btn btn-secondary" @click="cancelRenamePreset">取消</button>
-          <button class="btn btn-primary" @click="confirmRenamePreset" :disabled="!renameNewName.trim()">重命名</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toast 信息提示 -->
-    <div v-if="showToast" class="toast" :class="[`toast-${toastType}`]">
-      <div class="toast-content">
-        {{ toastMessage }}
-      </div>
-    </div>
-
-    <!-- 自定义确认对话框 -->
-    <div v-if="showConfirmDialog" class="dialog-overlay">
-      <div class="dialog confirm-dialog">
-        <h3>{{ confirmTitle }}</h3>
-        <div class="confirm-message">{{ confirmMessage }}</div>
-        <div class="dialog-buttons">
-          <button class="btn btn-secondary" @click="handleConfirm(false)">取消</button>
-          <button class="btn btn-danger" @click="handleConfirm(true)">确认</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 帮助对话框 -->
-    <div v-if="showHelpDialog" class="dialog-overlay">
-      <div class="dialog help-dialog">
-        <h3>{{ helpTitle }}</h3>
-        <div class="help-content" v-html="helpContent"></div>
-        <div class="dialog-buttons">
-          <button class="btn btn-primary" @click="showHelpDialog = false">确定</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 遮罩层 -->
-    <div 
-      v-if="contextMenu.show || showPresetDialog || showRenameDialog || showConfirmDialog || showHelpDialog || showSettingsMenu || showHelpMenu" 
-      class="overlay"
-      @click="contextMenu.show = false; showPresetDialog = false; showRenameDialog = false; showSettingsMenu = false; showHelpMenu = false"
-    ></div>
   </div>
+
+  <!-- 遮罩层用于关闭右键菜单 -->
+  <div 
+    v-if="contextMenu.show"
+    class="context-menu-overlay"
+    @click="contextMenu.show = false"
+    @contextmenu.prevent="contextMenu.show = false"
+  ></div>
+
+  <!-- 预设名称输入对话框 -->
+  <el-dialog
+    v-model="showPresetDialog"
+    title="保存预设"
+    width="400px"
+    :before-close="cancelSavePreset"
+  >
+    <el-form :model="presetForm" label-position="top">
+      <el-form-item label="预设名称">
+        <el-input
+          v-model="presetNameInput"
+          placeholder="请输入预设名称"
+          @keyup.enter="confirmSavePreset"
+          ref="presetInputRef"
+        />
+      </el-form-item>
+    </el-form>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="cancelSavePreset">取消</el-button>
+        <el-button type="primary" @click="confirmSavePreset" :disabled="!presetNameInput.trim()">
+          保存
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
+
+  <!-- 重命名预设对话框 -->
+  <el-dialog
+    v-model="showRenameDialog"
+    title="重命名预设"
+    width="400px"
+    :before-close="cancelRenamePreset"
+  >
+    <el-form :model="renameForm" label-position="top">
+      <el-form-item label="原名称">
+        <el-input :value="renamePresetName" disabled />
+      </el-form-item>
+      <el-form-item label="新名称">
+        <el-input
+          v-model="renameNewName"
+          placeholder="请输入新的预设名称"
+          @keyup.enter="confirmRenamePreset"
+          ref="renameInputRef"
+        />
+      </el-form-item>
+    </el-form>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="cancelRenamePreset">取消</el-button>
+        <el-button type="primary" @click="confirmRenamePreset" :disabled="!renameNewName.trim()">
+          重命名
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
+
+  <!-- 帮助对话框 -->
+  <el-dialog
+    v-model="showHelpDialog"
+    :title="helpTitle"
+    width="600px"
+    class="help-dialog"
+  >
+    <div class="help-content" v-html="helpContent"></div>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button type="primary" @click="showHelpDialog = false">确定</el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -239,6 +275,14 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/tauri'
 import { open } from '@tauri-apps/api/dialog'
 import { message, ask, confirm } from '@tauri-apps/api/dialog'
+
+// Element Plus 图标导入
+import { 
+  Setting, ArrowDown, Folder, QuestionFilled, InfoFilled,
+  Upload, Download, Collection, DocumentAdd, Check, Document,
+  Edit, Delete, VideoPlay
+} from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 响应式数据
 const labels = ['账号', '大区', '区服', '角色']
@@ -248,6 +292,14 @@ const targetSelections = reactive(['', '', '', ''])
 const sourceOptions = reactive([[], [], [], []])
 const targetOptions = reactive([[], [], [], []])
 const presets = reactive({})
+
+// Element Plus 表单数据
+const sourceForm = reactive({})
+const targetForm = reactive({})
+const presetForm = reactive({})
+const renameForm = reactive({})
+
+// 对话框和菜单状态
 const contextMenu = reactive({
   show: false,
   x: 0,
@@ -259,19 +311,27 @@ const presetNameInput = ref('')
 const showRenameDialog = ref(false)
 const renamePresetName = ref('')
 const renameNewName = ref('')
-const showToast = ref(false)
-const toastMessage = ref('')
-const toastType = ref('info')
-const showConfirmDialog = ref(false)
-const confirmTitle = ref('')
-const confirmMessage = ref('')
-const confirmResolve = ref(null)
-const showSettingsMenu = ref(false)
-const showHelpMenu = ref(false)
 const showHelpDialog = ref(false)
+const showHelpMenu = ref(false)
 const helpTitle = ref('')
 const helpContent = ref('')
 
+// 引用
+const presetInputRef = ref()
+const renameInputRef = ref()
+
+// 工具函数
+function getSelectedPath(selections, maxLevel = selections.length) {
+  let path = basePath.value
+  for (let i = 0; i < maxLevel && i < selections.length; i++) {
+    if (selections[i]) {
+      path += `/${selections[i]}`
+    } else {
+      break
+    }
+  }
+  return path
+}
 
 // 计算属性
 const presetNames = computed(() => Object.keys(presets))
@@ -478,18 +538,6 @@ async function autoUpdateTargetNextLevel(level) {
   }
 }
 
-function getSelectedPath(selections, maxLevel = selections.length) {
-  let path = basePath.value
-  for (let i = 0; i < maxLevel && i < selections.length; i++) {
-    if (selections[i]) {
-      path += `/${selections[i]}`
-    } else {
-      break
-    }
-  }
-  return path
-}
-
 function savePreset() {
   const timestamp = new Date().toLocaleString('zh-CN').replace(/[\/\s:]/g, '-')
   presetNameInput.value = `预设-${timestamp}`
@@ -497,12 +545,9 @@ function savePreset() {
   
   // 等待DOM更新后聚焦输入框
   setTimeout(() => {
-    const input = document.querySelector('.dialog input')
-    if (input) {
-      input.focus()
-      // 使用多种方法确保文字被选中
-      input.select()
-      input.setSelectionRange(0, input.value.length)
+    if (presetInputRef.value) {
+      presetInputRef.value.focus()
+      presetInputRef.value.select()
     }
   }, 200)
 }
@@ -537,19 +582,15 @@ function cancelSavePreset() {
 
 // 重命名预设相关函数
 function renamePreset(name) {
-  contextMenu.show = false
   renamePresetName.value = name
   renameNewName.value = name
   showRenameDialog.value = true
   
   // 等待DOM更新后聚焦输入框
   setTimeout(() => {
-    const input = document.querySelector('#renameInput')
-    if (input) {
-      input.focus()
-      // 使用多种方法确保文字被选中
-      input.select()
-      input.setSelectionRange(0, input.value.length)
+    if (renameInputRef.value) {
+      renameInputRef.value.focus()
+      renameInputRef.value.select()
     }
   }, 200)
 }
@@ -597,40 +638,54 @@ function cancelRenamePreset() {
   renameNewName.value = ''
 }
 
-// Toast 信息提示函数
+// Element Plus 消息提示函数
 function showToastMessage(message, type = 'info') {
-  toastMessage.value = message
-  toastType.value = type
-  showToast.value = true
-  
-  // 3秒后自动隐藏
-  setTimeout(() => {
-    showToast.value = false
-  }, 3000)
-}
-
-// 自定义确认对话框函数
-function showConfirm(title, message) {
-  return new Promise((resolve) => {
-    confirmTitle.value = title
-    confirmMessage.value = message
-    confirmResolve.value = resolve
-    showConfirmDialog.value = true
+  const messageType = type === 'warning' ? 'warning' : type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'
+  ElMessage({
+    message,
+    type: messageType,
+    duration: 3000,
+    showClose: true
   })
 }
 
-function handleConfirm(result) {
-  showConfirmDialog.value = false
-  if (confirmResolve.value) {
-    confirmResolve.value(result)
-    confirmResolve.value = null
+// Element Plus 确认对话框函数
+function showConfirm(title, message) {
+  return ElMessageBox.confirm(message, title, {
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+    type: 'warning',
+    dangerouslyUseHTMLString: true
+  }).then(() => true).catch(() => false)
+}
+
+// Element Plus 命令处理
+function handleCommand(command) {
+  switch (command) {
+    case 'changeFolder':
+      selectBaseFolder()
+      break
+    case 'help':
+      showUsageHelp()
+      break
+    case 'about':
+      showAbout()
+      break
   }
 }
 
-// 设置和帮助相关函数
-async function changeBaseFolder() {
-  showSettingsMenu.value = false
-  await selectBaseFolder()
+function handlePresetCommand(command) {
+  const presetName = contextMenu.presetName
+  contextMenu.show = false
+  
+  switch (command) {
+    case 'rename':
+      renamePreset(presetName)
+      break
+    case 'delete':
+      deletePreset(presetName)
+      break
+  }
 }
 
 function showUsageHelp() {
@@ -755,10 +810,19 @@ async function loadPreset(name) {
 }
 
 function showPresetMenu(event, presetName) {
-  contextMenu.show = true
-  contextMenu.x = event.clientX
-  contextMenu.y = event.clientY
-  contextMenu.presetName = presetName
+  event.preventDefault()
+  event.stopPropagation()
+  
+  // 关闭之前的菜单
+  contextMenu.show = false
+  
+  // 使用 nextTick 确保菜单位置正确
+  setTimeout(() => {
+    contextMenu.x = event.clientX
+    contextMenu.y = event.clientY
+    contextMenu.presetName = presetName
+    contextMenu.show = true
+  }, 10)
 }
 
 async function deletePreset(name) {
@@ -906,968 +970,386 @@ async function restoreLastSourceSelections() {
 </script>
 
 <style scoped>
-/* 现代化设计系统 */
-.app {
-  height: 100vh;
+/* Element Plus 主题样式 */
+.app-container {
+  min-height: 100vh;
+  height: 800px;
+  background: #f5f7fa;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
   display: flex;
-  flex-direction: column;
-  background: #f7fafc;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  overflow: hidden;
-}
-
-.main {
-  flex: 1;
-  padding: 16px 32px 20px;
-  overflow: hidden;
-}
-
-.container {
-  display: flex;
-  flex-direction: row;
-  gap: 28px;
-  height: 100%;
-  max-width: 1120px;
-  margin: 0 auto;
-}
-
-.panel {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.source-panel {
-  flex: 0.85;
-  margin-left: 8px;
-}
-
-.target-panel {
-  flex: 0.85;
-}
-
-.preset-panel {
-  flex: 0.55;
-  margin-right: 8px;
-}
-
-.panel:hover {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-  border-color: rgba(102, 126, 234, 0.2);
-}
-
-.panel-header {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
-  padding: 18px 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  position: relative;
+  height: 100%;
+  padding: 0 20px;
 }
 
-.panel-header::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 20px;
-  right: 20px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+.header-left {
+  display: flex;
+  align-items: center;
 }
 
-.panel-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #2d3748;
+.app-title {
   margin: 0;
-  letter-spacing: -0.01em;
-  text-align: center;
-  position: relative;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* 移除panel-icon样式 */
+.header-right {
+  display: flex;
+  align-items: center;
+}
 
-.form-container {
+.app-main {
+  padding: 20px 24px 20px 24px;
+  background: #f5f7fa;
+  overflow: hidden;
+}
+
+.main-row {
+  height: calc(100vh - 40px);
+  overflow: hidden;
+}
+
+.config-card {
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.config-card :deep(.el-card__header) {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+  border-bottom: 1px solid #e4e7ed;
+  padding: 18px 22px;
+}
+
+.source-card :deep(.el-card__header) {
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+}
+
+.target-card :deep(.el-card__header) {
+  background: linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%);
+}
+
+.preset-card :deep(.el-card__header) {
+  background: linear-gradient(135deg, #fff3e0 0%, #fce4ec 100%);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+}
+
+.header-icon {
+  font-size: 20px;
+  color: #409eff;
+}
+
+.config-form {
+  padding: 8px 0 0 0;
   flex: 1;
-  padding: 18px 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  overflow-y: auto;
-  min-height: 0;
+  overflow: hidden;
 }
 
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.form-item {
+  margin-bottom: 12px;
   flex-shrink: 0;
 }
 
-.form-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #4a5568;
-  margin-bottom: 5px;
-  letter-spacing: 0.02em;
+.form-item :deep(.el-form-item__label) {
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 8px;
 }
 
 .form-select {
-  padding: 11px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 13px;
-  background: #ffffff;
-  color: #2d3748;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  min-height: 42px;
-  height: 42px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  font-weight: 500;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 12px center;
-  background-repeat: no-repeat;
-  background-size: 15px;
-  padding-right: 38px;
-  padding-left: 16px;
-}
-
-.form-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 4px 6px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
-}
-
-.form-select:hover {
-  border-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
-}
-
-.form-select::selection {
-  background: rgba(102, 126, 234, 0.3);
-  color: #2d3748;
-}
-
-.form-select::-moz-selection {
-  background: rgba(102, 126, 234, 0.3);
-  color: #2d3748;
-}
-
-.action-btn {
-  margin-top: 10px;
-  margin-bottom: 0;
-  padding: 11px 18px;
-  border: none;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  flex-shrink: 0;
-  letter-spacing: 0.02em;
-  user-select: none;
-  -webkit-user-select: none;
-  position: relative;
-  overflow: hidden;
-}
-
-.action-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
   width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease;
 }
 
-.action-btn:hover::before {
-  left: 100%;
+.action-button {
+  width: 100%;
+  margin-top: auto;
+  margin-bottom: 12px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
-.action-btn:active {
-  transform: scale(0.96);
-  transition-duration: var(--duration-immediate);
-}
-
-.save-btn {
-  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.4);
-}
-
-.save-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
-  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.4);
-  transform: translateY(-1px);
-}
-
-.execute-btn {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
-}
-
-.execute-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
-  box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
-  transform: translateY(-1px);
-}
-
-.action-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.preset-container {
+.preset-content {
+  padding: 20px 0;
   flex: 1;
-  padding: 18px 14px 16px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   min-height: 0;
 }
 
 .preset-hint {
-  font-size: 11px;
-  color: #718096;
-  text-align: center;
   margin-bottom: 16px;
-  padding: 9px 14px;
-  background: linear-gradient(135deg, rgba(247, 250, 252, 0.9) 0%, rgba(237, 242, 247, 0.8) 100%);
   border-radius: 8px;
   flex-shrink: 0;
-  font-weight: 500;
-  border: 1px solid rgba(226, 232, 240, 0.5);
 }
 
 .preset-list {
   flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
-  padding-right: 4px;
+  min-height: 0;
+  padding-right: 6px;
 }
 
 .preset-item {
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-  -webkit-user-select: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
-  position: relative;
-  overflow: hidden;
-}
-
-.preset-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3px;
-  height: 100%;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-  opacity: 0;
-  transition: opacity 0.25s ease;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
 }
 
 .preset-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.04) 0%, rgba(118, 75, 162, 0.02) 100%);
-  border-color: rgba(102, 126, 234, 0.25);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #409eff;
 }
 
-.preset-item:hover::before {
-  opacity: 1;
+.preset-item-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
 }
 
-.preset-item:active {
-  transform: scale(0.98);
-  transition-duration: var(--duration-immediate);
+.preset-icon {
+  color: #909399;
+  font-size: 16px;
 }
 
 .preset-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: #2d3748;
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.preset-action-hint {
-  font-size: 11px;
-  color: #a0aec0;
-  opacity: 0;
-  transition: opacity 0.2s ease;
   font-weight: 500;
+  color: #303133;
 }
 
-.preset-item:hover .preset-action-hint {
-  opacity: 1;
-}
-
-.preset-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #a0aec0;
-  gap: 12px;
-  padding: 40px 20px;
-  background: linear-gradient(135deg, rgba(247, 250, 252, 0.5) 0%, rgba(237, 242, 247, 0.3) 100%);
-  border-radius: 12px;
-  border: 2px dashed #e2e8f0;
-}
-
-/* 移除empty-icon样式 */
-
-.empty-text {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-/* 移除面板特色边框 */
-
-/* 加载动画 */
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.form-select:focus::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  animation: shimmer 1.5s infinite;
-  pointer-events: none;
-}
-
-/* 滚动条优化 */
-.preset-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.preset-list::-webkit-scrollbar-track {
-  background: var(--bg-accent);
-  border-radius: var(--radius-sm);
-}
-
-.preset-list::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.preset-list::-webkit-scrollbar-thumb:hover {
-  background: var(--fg-tertiary);
-}
-
-/* 面板进入动画 */
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.panel {
-  animation: slideInUp 0.4s ease-out;
-}
-
-.source-panel {
-  animation-delay: 0.1s;
-}
-
-.target-panel {
-  animation-delay: 0.2s;
-}
-
-.preset-panel {
-  animation-delay: 0.3s;
-}
-
+/* 右键菜单样式 */
 .context-menu {
   position: fixed;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  font-size: 14px;
-  backdrop-filter: blur(20px);
-  min-width: 160px;
+  background: white;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  min-width: 140px;
+  padding: 4px 0;
 }
 
 .context-menu-item {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 8px 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  color: #2d3748;
-  font-weight: 500;
-  user-select: none;
-  -webkit-user-select: none;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  color: #606266;
 }
 
 .context-menu-item:hover {
-  background: rgba(102, 126, 234, 0.08);
+  background-color: #f5f7fa;
 }
 
-.context-menu-item.delete-item:hover {
-  background: rgba(245, 87, 108, 0.08);
-  color: #f5576c;
+.context-menu-item.danger-item {
+  color: #f56c6c;
+}
+
+.context-menu-item.danger-item:hover {
+  background-color: #fef0f0;
 }
 
 .context-menu-divider {
   height: 1px;
-  background: #e2e8f0;
+  background-color: #e4e7ed;
   margin: 4px 0;
 }
 
-/* 移除menu-icon样式 */
-
-.overlay {
+.context-menu-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 999;
-  backdrop-filter: blur(2px);
-}
-
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-overlay);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1001;
-  animation: fadeIn var(--duration-moderate) var(--timing-ease-out);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { 
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.dialog {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 32px;
-  min-width: 480px;
-  max-width: 90vw;
-  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(20px);
-}
-
-.dialog h3 {
-  margin: 0 0 20px 0;
-  color: #2d3748;
-  font-size: 18px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #4a5568;
-  margin-bottom: 8px;
-  display: block;
-}
-
-.input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 14px;
-  background: #ffffff;
-  color: #2d3748;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  font-weight: 500;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-  letter-spacing: -0.022em;
-  font-weight: var(--font-weight-regular);
-}
-
-.input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 4px 6px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
-}
-
-.input::placeholder {
-  color: #a0aec0;
-  font-weight: 400;
-}
-
-.input:disabled {
-  cursor: not-allowed;
-  background: #f7fafc;
-  color: #a0aec0;
-}
-
-.input::selection {
-  background: rgba(102, 126, 234, 0.3);
-  color: #2d3748;
-}
-
-.input::-moz-selection {
-  background: rgba(102, 126, 234, 0.3);
-  color: #2d3748;
-}
-
-.btn {
-  padding: var(--spacing-2) var(--spacing-4);
-  border: none;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  font-family: var(--font-family);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-  transform: translateY(-2px);
-}
-
-.btn-secondary {
-  background: #ffffff;
-  color: #4a5568;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #f7fafc;
-  border-color: #667eea;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-danger {
-  background: linear-gradient(135deg, #f5576c 0%, #e53e3e 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
-  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
-  transform: translateY(-2px);
-}
-
-.confirm-dialog {
-  max-width: 500px;
-}
-
-.confirm-message {
-  font-size: 14px;
-  color: #4a5568;
-  line-height: 1.6;
-  margin-bottom: 24px;
-  white-space: pre-line;
-}
-
-/* 工具栏样式 */
-.toolbar {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 8px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
-  z-index: 100;
-}
-
-.toolbar-left {
-  display: flex;
-  gap: 8px;
-}
-
-.toolbar-btn {
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 7px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #4a5568;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.toolbar-btn:hover {
-  background: rgba(255, 255, 255, 1);
-  border-color: rgba(102, 126, 234, 0.25);
-  color: #2d3748;
-  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.15);
-}
-
-/* 下拉菜单样式 */
-.dropdown-menu {
-  position: absolute;
-  top: 45px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  min-width: 140px;
-  overflow: hidden;
-}
-
-.settings-menu {
-  left: 16px;
-}
-
-.help-menu {
-  left: 80px;
-}
-
-.menu-item {
-  padding: 9px 14px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #4a5568;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.menu-item:hover {
-  background: rgba(102, 126, 234, 0.08);
-  color: #2d3748;
-}
-
-.menu-item:not(:last-child) {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 9998;
 }
 
 /* 帮助对话框样式 */
-.help-dialog {
-  max-width: 520px;
-  max-height: 85vh;
+.help-dialog :deep(.el-dialog__body) {
+  max-height: 60vh;
   overflow-y: auto;
 }
 
 .help-content {
-  font-size: 13px;
-  color: #4a5568;
-  line-height: 1.5;
-  margin-bottom: 20px;
+  line-height: 1.6;
+  color: #606266;
 }
 
-.help-section {
-  margin-bottom: 18px;
-}
-
-.help-section h4 {
-  font-size: 14px;
+.help-content h4 {
+  color: #303133;
+  margin: 16px 0 8px 0;
   font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-.help-section p, .help-section li {
-  margin-bottom: 4px;
-  font-size: 13px;
+.help-content p, .help-content li {
+  margin-bottom: 8px;
 }
 
-.help-section ol, .help-section ul {
-  padding-left: 18px;
-  margin-top: 4px;
+.help-content ol, .help-content ul {
+  padding-left: 20px;
+  margin: 8px 0;
 }
 
-.help-section strong {
-  color: #2d3748;
+.help-content strong {
+  color: #303133;
   font-weight: 600;
 }
 
 .about-content .app-info {
   text-align: center;
-  margin-bottom: 18px;
-  padding: 16px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.03) 100%);
+  margin-bottom: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f0f2ff 0%, #f8f9ff 100%);
   border-radius: 12px;
+  border: 1px solid #e4e7ed;
 }
 
 .about-content .app-info h4 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 10px;
-}
-
-.about-content .app-info p {
-  font-size: 13px;
-  margin-bottom: 4px;
+  color: #303133;
+  margin-bottom: 12px;
+  justify-content: center;
 }
 
 .features, .developer {
-  margin-bottom: 16px;
-}
-
-.features h4, .developer h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  margin-bottom: 20px;
 }
 
 .features ul {
-  padding-left: 18px;
+  padding-left: 20px;
 }
 
 .features li, .developer p {
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-/* Toast 样式 */
-.toast {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 2000;
-  padding: 16px 20px;
-  border-radius: 12px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  font-size: 14px;
-  font-weight: 500;
-  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  max-width: 400px;
-  word-wrap: break-word;
-}
-
-.toast-success {
-  background: rgba(52, 199, 89, 0.9);
-  color: white;
-  border: 1px solid rgba(52, 199, 89, 0.3);
-}
-
-.toast-error {
-  background: rgba(255, 59, 48, 0.9);
-  color: white;
-  border: 1px solid rgba(255, 59, 48, 0.3);
-}
-
-.toast-warning {
-  background: rgba(255, 149, 0, 0.9);
-  color: white;
-  border: 1px solid rgba(255, 149, 0, 0.3);
-}
-
-.toast-info {
-  background: rgba(0, 122, 255, 0.9);
-  color: white;
-  border: 1px solid rgba(0, 122, 255, 0.3);
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.dialog-buttons {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-.form-group {
-  margin-bottom: var(--spacing-20);
-}
-
-.form-group:last-of-type {
-  margin-bottom: 0;
+  margin-bottom: 6px;
 }
 
 /* 响应式设计 */
+@media (max-width: 1200px) {
+  .main-row :deep(.el-col) {
+    margin-bottom: 20px;
+  }
+  
+  .main-row {
+    height: auto;
+  }
+  
+  .config-card {
+    height: auto;
+  }
+}
+
 @media (max-width: 768px) {
-  .container {
-    flex-direction: column;
+  .app-main {
+    padding: 10px;
   }
   
-  .panel {
-    flex: none;
-    height: 200px;
+  .header-content {
+    padding: 0 10px;
   }
   
-  .preset-panel {
-    height: 300px;
-  }
-}
-
-@media (max-width: 900px) {
-  .main {
-    padding: var(--spacing-3);
+  .app-title {
+    font-size: 16px;
   }
   
-  .container {
-    gap: var(--spacing-3);
+  .config-form {
+    padding: 10px 0;
   }
   
-  .panel-header {
-    padding: var(--spacing-2) var(--spacing-3);
-  }
-  
-  .form-container, .preset-container {
-    padding: var(--spacing-3);
-  }
-  
-  .panel-title {
-    font-size: var(--font-size-base);
-  }
-  
-  .dialog {
-    min-width: 320px;
-    margin: var(--spacing-4);
-    padding: var(--spacing-6);
-  }
-}
-
-/* 高度优化 */
-@media (max-height: 600px) {
-  .main {
-    padding: var(--spacing-2);
-  }
-  
-  .form-container, .preset-container {
-    padding: var(--spacing-2);
-  }
-  
-  .form-row {
-    gap: var(--spacing-1);
-  }
-  
-  .form-select {
-    min-height: 32px;
-    height: 32px;
-    padding: var(--spacing-1) var(--spacing-2);
-    font-size: var(--font-size-xs);
-  }
-  
-  .action-btn {
-    min-height: 32px;
-    padding: var(--spacing-1) var(--spacing-3);
-    font-size: var(--font-size-xs);
-  }
-  
-  .panel-header {
-    padding: var(--spacing-2);
-  }
-  
-  .panel-title {
-    font-size: var(--font-size-sm);
+  .preset-content {
+    padding: 10px 0;
   }
 }
 </style>
+/* 滚动条样式
+优化 */
+.preset-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.preset-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.preset-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.preset-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 确保卡片内容不会溢出 */
+.config-card :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 20px 16px 20px;
+}
+
+/* 表单项标签样式优化 */
+.form-item :deep(.el-form-item__label) {
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+/* 选择框样式优化 */
+.form-select :deep(.el-input__inner) {
+  font-size: 14px;
+  height: 36px;
+}
+
+/* 空状态样式优化 */
+.preset-content :deep(.el-empty) {
+  padding: 20px 0;
+}
+
+.preset-content :deep(.el-empty__description) {
+  font-size: 13px;
+  color: #909399;
+}
