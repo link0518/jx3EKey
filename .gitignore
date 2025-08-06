@@ -4,6 +4,10 @@ dist/
 .DS_Store
 *.log
 
+# IDE files
+.vscode/
+.idea/
+
 # Tauri build files
 /src-tauri/gen/
 /src-tauri/target/
