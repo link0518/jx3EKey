@@ -51,9 +51,14 @@ npm install
 # 开发模式运行
 npm run dev
 
-# 构建生产版本
+# 构建Tauri应用（生成可执行文件）
+npm run tauri build
+
+# 仅构建前端（不包含桌面应用）
 npm run build
 ```
+
+> **注意**：首次构建可能需要较长时间，因为需要下载Rust依赖并编译。构建完成后，可执行文件将位于`src-tauri/target/release`目录。
 
 ## 🎮 使用指南
 
@@ -120,20 +125,39 @@ npm install
 # 开发模式（热重载）
 npm run dev
 
-# 构建应用
-npm run build
+# 构建Tauri应用（完整桌面应用）
+npm run tauri build
 
-# 仅构建前端
-npm run build:web
+# 仅构建前端（不含桌面应用）
+npm run build
 
 # 检查代码
 npm run lint
 ```
 
+### 构建说明
+
+构建Tauri应用时会经历以下步骤：
+
+1. **前端构建**：使用Vite打包Vue应用
+2. **Rust编译**：编译Rust后端代码
+3. **资源打包**：将前端资源和Rust二进制文件打包成可执行文件
+
+首次构建可能需要5-10分钟，取决于您的计算机性能和网络状况。后续构建会更快，因为依赖已经缓存。
+
 ### 调试技巧
 - 使用浏览器开发者工具调试前端
-- 使用 `console.log` 在 Rust 端输出调试信息
-- 查看 `target/debug` 目录下的日志文件
+- 使用 `console.log` 在前端输出调试信息
+- 在Rust代码中使用 `println!` 或 `eprintln!` 输出调试信息
+- 开发模式下查看 `src-tauri/target/debug` 目录下的日志文件
+- 生产模式下查看 `%APPDATA%/com.jx3.keymanager/logs` 目录下的日志文件
+
+### 常见问题
+
+- **构建失败**：确保已安装最新版本的Rust和Node.js
+- **依赖下载慢**：可以配置Rust镜像源或使用代理
+- **窗口显示异常**：检查tauri.conf.json中的窗口配置
+- **权限问题**：检查capabilities目录下的权限配置
 
 ## 🤝 贡献指南
 
