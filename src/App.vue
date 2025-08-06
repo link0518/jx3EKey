@@ -275,13 +275,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/tauri'
 import { open } from '@tauri-apps/api/dialog'
-import { message, ask, confirm } from '@tauri-apps/api/dialog'
 import { appWindow } from '@tauri-apps/api/window'
 
-// Element Plus 图标导入
+// Element Plus 组件和图标
 import { 
   Setting, Folder, QuestionFilled, InfoFilled,
   Upload, Download, Collection, DocumentAdd, Check, Document,
@@ -289,45 +288,76 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 响应式数据
-const labels = ['账号', '大区', '区服', '角色']
+// ==================== 常量定义 ====================
+const SELECTION_LABELS = ['账号', '大区', '区服', '角色']
+const DIALOG_FOCUS_DELAY = 200
+
+// ==================== 响应式数据 ====================
+// 基础配置
 const basePath = ref('')
+const labels = SELECTION_LABELS
+
+// 选择器数据
 const sourceSelections = reactive(['', '', '', ''])
 const targetSelections = reactive(['', '', '', ''])
 const sourceOptions = reactive([[], [], [], []])
 const targetOptions = reactive([[], [], [], []])
+
+// 预设管理
 const presets = reactive({})
 
-// Element Plus 表单数据
+// 表单数据（Element Plus 需要）
 const sourceForm = reactive({})
 const targetForm = reactive({})
 const presetForm = reactive({})
 const renameForm = reactive({})
 
-// 对话框和菜单状态
+// ==================== UI 状态管理 ====================
+// 右键菜单
 const contextMenu = reactive({
   show: false,
   x: 0,
   y: 0,
   presetName: ''
 })
+
+// 对话框状态
 const showPresetDialog = ref(false)
 const presetNameInput = ref('')
 const showRenameDialog = ref(false)
 const renamePresetName = ref('')
 const renameNewName = ref('')
 const showHelpDialog = ref(false)
-const showHelpMenu = ref(false)
 const helpTitle = ref('')
 const helpContent = ref('')
 
-// 引用
+// DOM 引用
 const presetInputRef = ref()
 const renameInputRef = ref()
 
-// 工具函数
+// ==================== 计算属性 ====================
+const presetNames = computed(() => Object.keys(presets))
+
+const canSavePreset = computed(() => 
+  basePath.value && sourceSelections.some(selection => selection)
+)
+
+const canExecute = computed(() => {
+  const sourcePath = getSelectedPath(sourceSelections)
+  const targetPath = getSelectedPath(targetSelections)
+  return sourcePath && targetPath && sourcePath !== targetPath
+})
+
+// ==================== 工具函数 ====================
+/**
+ * 根据选择构建文件路径
+ * @param {Array} selections - 选择数组
+ * @param {number} maxLevel - 最大层级
+ * @returns {string} 构建的路径
+ */
 function getSelectedPath(selections, maxLevel = selections.length) {
   let path = basePath.value
+  
   for (let i = 0; i < maxLevel && i < selections.length; i++) {
     if (selections[i]) {
       path += `/${selections[i]}`
@@ -335,32 +365,63 @@ function getSelectedPath(selections, maxLevel = selections.length) {
       break
     }
   }
+  
   return path
 }
 
-// 计算属性
-const presetNames = computed(() => Object.keys(presets))
-const canSavePreset = computed(() => basePath.value && sourceSelections.some(s => s))
-const canExecute = computed(() => {
-  const sourcePath = getSelectedPath(sourceSelections)
-  const targetPath = getSelectedPath(targetSelections)
-  return sourcePath && targetPath && sourcePath !== targetPath
-})
+/**
+ * 显示消息提示
+ * @param {string} message - 消息内容
+ * @param {string} type - 消息类型
+ */
+function showToastMessage(message, type = 'info') {
+  const messageType = ['warning', 'error', 'success'].includes(type) ? type : 'info'
+  ElMessage({
+    message,
+    type: messageType,
+    duration: 3000,
+    showClose: true
+  })
+}
 
-// 生命周期
+/**
+ * 显示确认对话框
+ * @param {string} title - 标题
+ * @param {string} message - 消息内容
+ * @returns {Promise<boolean>} 用户确认结果
+ */
+function showConfirm(title, message) {
+  return ElMessageBox.confirm(message, title, {
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+    type: 'warning',
+    dangerouslyUseHTMLString: true
+  }).then(() => true).catch(() => false)
+}
+
+// ==================== 生命周期 ====================
 onMounted(async () => {
-  await loadConfig()
-  await loadPresets()
-  if (!basePath.value) {
-    await selectBaseFolder()
-  } else {
-    await updateOptions()
-    // 恢复上次的源账号选择
-    await restoreLastSourceSelections()
+  try {
+    // 加载所有应用数据
+    await loadAppData()
+    
+    // 初始化应用状态
+    if (!basePath.value) {
+      await selectBaseFolder()
+    } else {
+      await updateOptions()
+      await restoreLastSourceSelections()
+    }
+  } catch (error) {
+    console.error('应用初始化失败:', error)
+    showToastMessage('应用初始化失败，请重试', 'error')
   }
 })
 
-// 方法
+// ==================== 文件夹管理 ====================
+/**
+ * 选择游戏数据文件夹
+ */
 async function selectBaseFolder() {
   try {
     const selected = await open({
@@ -375,10 +436,15 @@ async function selectBaseFolder() {
       showToastMessage('文件夹设置成功', 'success')
     }
   } catch (error) {
+    console.error('选择文件夹失败:', error)
     showToastMessage(`选择文件夹失败: ${error}`, 'error')
   }
 }
 
+// ==================== 选项管理 ====================
+/**
+ * 更新所有选项
+ */
 async function updateOptions() {
   if (!basePath.value) return
   
@@ -399,180 +465,156 @@ async function updateOptions() {
   }
 }
 
+/**
+ * 更新指定层级的选项
+ * @param {string} path - 目录路径
+ * @param {number} level - 层级索引
+ */
 async function updateLevelOptions(path, level) {
   if (level >= labels.length) return
   
   try {
     const subdirs = await invoke('get_subdirectories', { path })
+    
+    // 更新源和目标选项
     sourceOptions[level].splice(0, sourceOptions[level].length, ...subdirs)
     targetOptions[level].splice(0, targetOptions[level].length, ...subdirs)
     
-    // 不再递归调用，避免无限递归
     console.log(`第${level}级选项已更新，共${subdirs.length}个选项`)
   } catch (error) {
-    console.error('获取子目录失败:', error)
+    console.error(`获取第${level}级子目录失败:`, error)
   }
 }
 
 
 
+// ==================== 选择器事件处理 ====================
+/**
+ * 处理源账号选择变更
+ * @param {number} level - 变更的层级
+ */
 async function onSourceChange(level) {
   console.log(`源账号选择变更: level=${level}, value=${sourceSelections[level]}`)
   
-  // 清空后续级别的选择
-  for (let i = level + 1; i < sourceSelections.length; i++) {
-    sourceSelections[i] = ''
-    sourceOptions[i].splice(0)
-  }
+  // 清空后续级别的选择和选项
+  clearSubsequentLevels(sourceSelections, sourceOptions, level)
   
-  // 如果选择了当前级别，更新下一级选项
+  // 如果当前级别有选择，更新下一级选项
   if (sourceSelections[level] && level + 1 < labels.length) {
-    const path = getSelectedPath(sourceSelections, level + 1)
-    console.log(`准备更新下一级选项: path=${path}, nextLevel=${level + 1}`)
-    
-    try {
-      const subdirs = await invoke('get_subdirectories', { path })
-      console.log(`获取到${subdirs.length}个子目录:`, subdirs)
-      
-      sourceOptions[level + 1].splice(0, sourceOptions[level + 1].length, ...subdirs)
-      targetOptions[level + 1].splice(0, targetOptions[level + 1].length, ...subdirs)
-      
-      // 自动选择第一个选项
-      if (subdirs.length > 0) {
-        sourceSelections[level + 1] = subdirs[0]
-        console.log(`自动选择: ${labels[level + 1]} = ${subdirs[0]}`)
-        
-        // 递归更新下一级
-        await autoUpdateNextLevel(level + 1)
-      }
-    } catch (error) {
-      console.error('获取子目录失败:', error)
-    }
+    await updateNextLevelOptions(sourceSelections, sourceOptions, targetOptions, level)
   }
   
-  console.log('源账号选择处理完成')
-  
-  // 保存当前选择状态
+  // 保存配置
   await saveConfig()
+  console.log('源账号选择处理完成')
 }
 
-async function autoUpdateNextLevel(level) {
-  if (level + 1 >= labels.length) return
-  
-  const path = getSelectedPath(sourceSelections, level + 1)
-  console.log(`自动更新下一级: path=${path}, nextLevel=${level + 1}`)
-  
-  try {
-    const subdirs = await invoke('get_subdirectories', { path })
-    console.log(`自动获取到${subdirs.length}个子目录:`, subdirs)
-    
-    sourceOptions[level + 1].splice(0, sourceOptions[level + 1].length, ...subdirs)
-    targetOptions[level + 1].splice(0, targetOptions[level + 1].length, ...subdirs)
-    
-    // 如果有选项，继续自动选择
-    if (subdirs.length > 0) {
-      sourceSelections[level + 1] = subdirs[0]
-      console.log(`自动选择: ${labels[level + 1]} = ${subdirs[0]}`)
-      
-      // 继续下一级
-      await autoUpdateNextLevel(level + 1)
-    }
-  } catch (error) {
-    console.error('自动更新失败:', error)
-  }
-}
-
+/**
+ * 处理目标账号选择变更
+ * @param {number} level - 变更的层级
+ */
 async function onTargetChange(level) {
   console.log(`目标账号选择变更: level=${level}, value=${targetSelections[level]}`)
   
-  // 清空后续级别的选择
-  for (let i = level + 1; i < targetSelections.length; i++) {
-    targetSelections[i] = ''
-    targetOptions[i].splice(0)
-  }
+  // 清空后续级别的选择和选项
+  clearSubsequentLevels(targetSelections, targetOptions, level)
   
-  // 如果选择了当前级别，更新下一级选项
+  // 如果当前级别有选择，更新下一级选项
   if (targetSelections[level] && level + 1 < labels.length) {
-    const path = getSelectedPath(targetSelections, level + 1)
-    console.log(`准备更新目标下一级选项: path=${path}, nextLevel=${level + 1}`)
-    
-    try {
-      const subdirs = await invoke('get_subdirectories', { path })
-      console.log(`获取到${subdirs.length}个子目录:`, subdirs)
-      
-      targetOptions[level + 1].splice(0, targetOptions[level + 1].length, ...subdirs)
-      
-      // 自动选择第一个选项
-      if (subdirs.length > 0) {
-        targetSelections[level + 1] = subdirs[0]
-        console.log(`目标自动选择: ${labels[level + 1]} = ${subdirs[0]}`)
-        
-        // 递归更新下一级
-        await autoUpdateTargetNextLevel(level + 1)
-      }
-    } catch (error) {
-      console.error('获取目标子目录失败:', error)
-    }
+    await updateNextLevelOptions(targetSelections, [targetOptions], null, level)
   }
   
   console.log('目标账号选择处理完成')
 }
 
-async function autoUpdateTargetNextLevel(level) {
-  if (level + 1 >= labels.length) return
-  
-  const path = getSelectedPath(targetSelections, level + 1)
-  console.log(`目标自动更新下一级: path=${path}, nextLevel=${level + 1}`)
-  
-  try {
-    const subdirs = await invoke('get_subdirectories', { path })
-    console.log(`目标自动获取到${subdirs.length}个子目录:`, subdirs)
-    
-    targetOptions[level + 1].splice(0, targetOptions[level + 1].length, ...subdirs)
-    
-    // 如果有选项，继续自动选择
-    if (subdirs.length > 0) {
-      targetSelections[level + 1] = subdirs[0]
-      console.log(`目标自动选择: ${labels[level + 1]} = ${subdirs[0]}`)
-      
-      // 继续下一级
-      await autoUpdateTargetNextLevel(level + 1)
+/**
+ * 清空指定层级之后的所有选择和选项
+ * @param {Array} selections - 选择数组
+ * @param {Array} options - 选项数组
+ * @param {number} level - 起始层级
+ */
+function clearSubsequentLevels(selections, options, level) {
+  for (let i = level + 1; i < selections.length; i++) {
+    selections[i] = ''
+    if (options[i]) {
+      options[i].splice(0)
     }
-  } catch (error) {
-    console.error('目标自动更新失败:', error)
   }
 }
 
+/**
+ * 更新下一级选项并自动选择
+ * @param {Array} selections - 选择数组
+ * @param {Array} sourceOpts - 源选项数组
+ * @param {Array} targetOpts - 目标选项数组
+ * @param {number} level - 当前层级
+ */
+async function updateNextLevelOptions(selections, sourceOpts, targetOpts, level) {
+  const nextLevel = level + 1
+  const path = getSelectedPath(selections, nextLevel)
+  
+  console.log(`准备更新第${nextLevel}级选项: path=${path}`)
+  
+  try {
+    const subdirs = await invoke('get_subdirectories', { path })
+    console.log(`获取到${subdirs.length}个子目录:`, subdirs)
+    
+    // 更新选项
+    sourceOpts[nextLevel].splice(0, sourceOpts[nextLevel].length, ...subdirs)
+    if (targetOpts && targetOpts[nextLevel]) {
+      targetOpts[nextLevel].splice(0, targetOpts[nextLevel].length, ...subdirs)
+    }
+    
+    // 自动选择第一个选项
+    if (subdirs.length > 0) {
+      selections[nextLevel] = subdirs[0]
+      console.log(`自动选择: ${labels[nextLevel]} = ${subdirs[0]}`)
+      
+      // 递归更新下一级
+      if (nextLevel + 1 < labels.length) {
+        await updateNextLevelOptions(selections, sourceOpts, targetOpts, nextLevel)
+      }
+    }
+  } catch (error) {
+    console.error(`获取第${nextLevel}级子目录失败:`, error)
+  }
+}
+
+
+
+// ==================== 预设管理 ====================
+/**
+ * 开始保存预设流程
+ */
 function savePreset() {
   const timestamp = new Date().toLocaleString('zh-CN').replace(/[\/\s:]/g, '-')
   presetNameInput.value = `预设-${timestamp}`
   showPresetDialog.value = true
   
-  // 等待DOM更新后聚焦输入框
-  setTimeout(() => {
-    if (presetInputRef.value) {
-      presetInputRef.value.focus()
-      presetInputRef.value.select()
-    }
-  }, 200)
+  // 聚焦输入框
+  focusInput(presetInputRef)
 }
 
+/**
+ * 确认保存预设
+ */
 async function confirmSavePreset() {
   try {
     const name = presetNameInput.value.trim()
     if (!name) return
     
+    // 检查是否需要覆盖
     if (presets[name]) {
       const confirmed = await showConfirm('确认覆盖', `预设 '${name}' 已存在，是否覆盖？`)
       if (!confirmed) return
     }
     
+    // 保存预设数据
     presets[name] = [basePath.value, ...sourceSelections]
     await savePresets()
     
-    showPresetDialog.value = false
-    presetNameInput.value = ''
-    
+    // 关闭对话框并清空输入
+    closePresetDialog()
     showToastMessage(`预设 '${name}' 已保存`, 'success')
   } catch (error) {
     console.error('保存预设失败:', error)
@@ -580,26 +622,37 @@ async function confirmSavePreset() {
   }
 }
 
+/**
+ * 取消保存预设
+ */
 function cancelSavePreset() {
+  closePresetDialog()
+}
+
+/**
+ * 关闭预设对话框
+ */
+function closePresetDialog() {
   showPresetDialog.value = false
   presetNameInput.value = ''
 }
 
-// 重命名预设相关函数
+/**
+ * 开始重命名预设
+ * @param {string} name - 预设名称
+ */
 function renamePreset(name) {
   renamePresetName.value = name
   renameNewName.value = name
   showRenameDialog.value = true
   
-  // 等待DOM更新后聚焦输入框
-  setTimeout(() => {
-    if (renameInputRef.value) {
-      renameInputRef.value.focus()
-      renameInputRef.value.select()
-    }
-  }, 200)
+  // 聚焦输入框
+  focusInput(renameInputRef)
 }
 
+/**
+ * 确认重命名预设
+ */
 async function confirmRenamePreset() {
   try {
     const oldName = renamePresetName.value
@@ -607,29 +660,24 @@ async function confirmRenamePreset() {
     
     if (!newName) return
     
+    // 如果名称没有变化，直接关闭
     if (newName === oldName) {
-      showRenameDialog.value = false
-      renamePresetName.value = ''
-      renameNewName.value = ''
+      closeRenameDialog()
       return
     }
     
+    // 检查新名称是否已存在
     if (presets[newName]) {
       const confirmed = await showConfirm('确认覆盖', `预设 '${newName}' 已存在，是否覆盖？`)
       if (!confirmed) return
     }
     
-    // 复制预设数据到新名称
+    // 执行重命名
     presets[newName] = presets[oldName]
-    // 删除旧名称
     delete presets[oldName]
-    
     await savePresets()
     
-    showRenameDialog.value = false
-    renamePresetName.value = ''
-    renameNewName.value = ''
-    
+    closeRenameDialog()
     showToastMessage(`预设已重命名为 '${newName}'`, 'success')
   } catch (error) {
     console.error('重命名预设失败:', error)
@@ -637,64 +685,79 @@ async function confirmRenamePreset() {
   }
 }
 
+/**
+ * 取消重命名预设
+ */
 function cancelRenamePreset() {
+  closeRenameDialog()
+}
+
+/**
+ * 关闭重命名对话框
+ */
+function closeRenameDialog() {
   showRenameDialog.value = false
   renamePresetName.value = ''
   renameNewName.value = ''
 }
 
-// Element Plus 消息提示函数
-function showToastMessage(message, type = 'info') {
-  const messageType = type === 'warning' ? 'warning' : type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'
-  ElMessage({
-    message,
-    type: messageType,
-    duration: 3000,
-    showClose: true
+/**
+ * 聚焦输入框
+ * @param {Ref} inputRef - 输入框引用
+ */
+function focusInput(inputRef) {
+  nextTick(() => {
+    setTimeout(() => {
+      if (inputRef.value) {
+        inputRef.value.focus()
+        inputRef.value.select()
+      }
+    }, DIALOG_FOCUS_DELAY)
   })
 }
 
-// Element Plus 确认对话框函数
-function showConfirm(title, message) {
-  return ElMessageBox.confirm(message, title, {
-    confirmButtonText: '确认',
-    cancelButtonText: '取消',
-    type: 'warning',
-    dangerouslyUseHTMLString: true
-  }).then(() => true).catch(() => false)
-}
-
-// Element Plus 命令处理
+// ==================== 命令处理 ====================
+/**
+ * 处理下拉菜单命令
+ * @param {string} command - 命令类型
+ */
 function handleCommand(command) {
-  switch (command) {
-    case 'changeFolder':
-      selectBaseFolder()
-      break
-    case 'help':
-      showUsageHelp()
-      break
-    case 'about':
-      showAbout()
-      break
+  const commandHandlers = {
+    changeFolder: selectBaseFolder,
+    help: showUsageHelp,
+    about: showAbout
+  }
+  
+  const handler = commandHandlers[command]
+  if (handler) {
+    handler()
   }
 }
 
+/**
+ * 处理预设右键菜单命令
+ * @param {string} command - 命令类型
+ */
 function handlePresetCommand(command) {
   const presetName = contextMenu.presetName
   contextMenu.show = false
   
-  switch (command) {
-    case 'rename':
-      renamePreset(presetName)
-      break
-    case 'delete':
-      deletePreset(presetName)
-      break
+  const commandHandlers = {
+    rename: () => renamePreset(presetName),
+    delete: () => deletePreset(presetName)
+  }
+  
+  const handler = commandHandlers[command]
+  if (handler) {
+    handler()
   }
 }
 
+// ==================== 帮助和关于 ====================
+/**
+ * 显示使用帮助
+ */
 function showUsageHelp() {
-  showHelpMenu.value = false
   helpTitle.value = '使用帮助'
   helpContent.value = `
     <div class="help-section">
@@ -733,15 +796,26 @@ function showUsageHelp() {
   showHelpDialog.value = true
 }
 
+/**
+ * 显示关于对话框
+ */
 function showAbout() {
-  showHelpMenu.value = false
   helpTitle.value = '关于'
-  helpContent.value = `
+  helpContent.value = generateAboutContent()
+  showHelpDialog.value = true
+}
+
+/**
+ * 生成关于内容
+ * @returns {string} HTML格式的关于内容
+ */
+function generateAboutContent() {
+  return `
     <div class="about-container">
       <div class="app-header">
-        <div class="app-icon">⚔️</div>
+        <div class="app-icon">🦊</div>
         <div class="app-info">
-          <h3>剑网3改键工具</h3>
+          <h3>毛毛狐改键工具</h3>
           <p class="version">v3.0.0 Tauri Edition</p>
         </div>
       </div>
@@ -757,7 +831,7 @@ function showAbout() {
         </div>
         <div class="feature-item">
           <div class="feature-icon">🔧</div>
-          <span>智能预设</span>
+          <span>智能预设管理</span>
         </div>
         <div class="feature-item">
           <div class="feature-icon">🛡️</div>
@@ -767,21 +841,31 @@ function showAbout() {
       
       <div class="tech-stack">
         <p class="tech-title">技术栈</p>
-        <p class="tech-desc">Vue 3 + Tauri + Rust</p>
+        <p class="tech-desc">Vue 3 + Tauri + Rust + Element Plus</p>
+      </div>
+      
+      <div class="description">
+        <p>专为剑网3玩家打造的键位配置管理工具，支持快速复制角色键位配置，让你轻松管理多个角色的按键设置。</p>
       </div>
       
       <div class="author-info">
-        <p>by 咕涌</p>
+        <p>开发者：咕涌</p>
         <p class="copyright">© 2025 All rights reserved</p>
       </div>
     </div>
   `
-  showHelpDialog.value = true
 }
 
+/**
+ * 加载预设配置
+ * @param {string} name - 预设名称
+ */
 async function loadPreset(name) {
   try {
-    if (!presets[name]) return
+    if (!presets[name]) {
+      showToastMessage('预设不存在', 'warning')
+      return
+    }
     
     console.log(`加载预设: ${name}`)
     const [savedBasePath, ...selections] = presets[name]
@@ -795,34 +879,49 @@ async function loadPreset(name) {
     // 重新初始化选项
     await updateOptions()
     
-    // 逐级设置选择并更新选项
-    for (let i = 0; i < selections.length && i < sourceSelections.length; i++) {
-      if (selections[i]) {
-        sourceSelections[i] = selections[i]
-        
-        // 更新下一级选项
-        if (i + 1 < labels.length) {
-          const path = getSelectedPath(sourceSelections, i + 1)
-          try {
-            const subdirs = await invoke('get_subdirectories', { path })
-            sourceOptions[i + 1].splice(0, sourceOptions[i + 1].length, ...subdirs)
-            targetOptions[i + 1].splice(0, targetOptions[i + 1].length, ...subdirs)
-          } catch (error) {
-            console.error(`更新第${i + 1}级选项失败:`, error)
-            break
-          }
-        }
-      }
-    }
+    // 逐级恢复选择
+    await restorePresetSelections(selections)
     
     await saveConfig()
     console.log('预设加载完成')
+    showToastMessage(`预设 '${name}' 加载成功`, 'success')
   } catch (error) {
     console.error('加载预设失败:', error)
     showToastMessage(`加载预设失败: ${error}`, 'error')
   }
 }
 
+/**
+ * 恢复预设的选择配置
+ * @param {Array} selections - 预设的选择数组
+ */
+async function restorePresetSelections(selections) {
+  for (let i = 0; i < selections.length && i < sourceSelections.length; i++) {
+    if (!selections[i]) continue
+    
+    sourceSelections[i] = selections[i]
+    
+    // 更新下一级选项
+    if (i + 1 < labels.length) {
+      const path = getSelectedPath(sourceSelections, i + 1)
+      
+      try {
+        const subdirs = await invoke('get_subdirectories', { path })
+        sourceOptions[i + 1].splice(0, sourceOptions[i + 1].length, ...subdirs)
+        targetOptions[i + 1].splice(0, targetOptions[i + 1].length, ...subdirs)
+      } catch (error) {
+        console.error(`更新第${i + 1}级选项失败:`, error)
+        break
+      }
+    }
+  }
+}
+
+/**
+ * 显示预设右键菜单
+ * @param {Event} event - 鼠标事件
+ * @param {string} presetName - 预设名称
+ */
 function showPresetMenu(event, presetName) {
   event.preventDefault()
   event.stopPropagation()
@@ -830,20 +929,29 @@ function showPresetMenu(event, presetName) {
   // 关闭之前的菜单
   contextMenu.show = false
   
-  // 使用 nextTick 确保菜单位置正确
-  setTimeout(() => {
-    contextMenu.x = event.clientX
-    contextMenu.y = event.clientY
-    contextMenu.presetName = presetName
-    contextMenu.show = true
-  }, 10)
+  // 延迟显示确保位置正确
+  nextTick(() => {
+    setTimeout(() => {
+      contextMenu.x = event.clientX
+      contextMenu.y = event.clientY
+      contextMenu.presetName = presetName
+      contextMenu.show = true
+    }, 10)
+  })
 }
 
+/**
+ * 删除预设
+ * @param {string} name - 预设名称
+ */
 async function deletePreset(name) {
   contextMenu.show = false
   
   try {
-    const confirmed = await showConfirm('确认删除', `确定要删除预设 '${name}' 吗？\n\n此操作无法撤销。`)
+    const confirmed = await showConfirm(
+      '确认删除', 
+      `确定要删除预设 '${name}' 吗？\n\n此操作无法撤销。`
+    )
     
     if (confirmed) {
       delete presets[name]
@@ -851,25 +959,24 @@ async function deletePreset(name) {
       showToastMessage(`预设 '${name}' 已删除`, 'success')
     }
   } catch (error) {
+    console.error('删除预设失败:', error)
     showToastMessage(`删除预设失败: ${error}`, 'error')
   }
 }
 
+// ==================== 核心功能 ====================
+/**
+ * 执行改键操作
+ */
 async function executeKeyChange() {
   const sourcePath = getSelectedPath(sourceSelections)
   const targetPath = getSelectedPath(targetSelections)
   
-  if (!sourcePath || !targetPath) {
-    showToastMessage('请确保源路径和目标路径都已选择', 'warning')
-    return
-  }
-  
-  if (sourcePath === targetPath) {
-    showToastMessage('源路径和目标路径不能相同', 'warning')
-    return
-  }
+  // 验证路径
+  if (!validatePaths(sourcePath, targetPath)) return
   
   try {
+    // 构建确认信息
     const sourceName = sourceSelections.filter(s => s).join(' → ')
     const targetName = targetSelections.filter(s => s).join(' → ')
     
@@ -880,99 +987,149 @@ async function executeKeyChange() {
     
     if (!confirmed) return
     
+    // 执行复制操作
     await invoke('copy_directory', { source: sourcePath, target: targetPath })
     showToastMessage('键位配置已成功复制到目标位置！建议重启游戏以确保配置生效', 'success')
   } catch (error) {
+    console.error('改键操作失败:', error)
     showToastMessage(`改键操作失败: ${error}`, 'error')
   }
 }
 
-async function saveConfig() {
+/**
+ * 验证源路径和目标路径
+ * @param {string} sourcePath - 源路径
+ * @param {string} targetPath - 目标路径
+ * @returns {boolean} 验证结果
+ */
+function validatePaths(sourcePath, targetPath) {
+  if (!sourcePath || !targetPath) {
+    showToastMessage('请确保源路径和目标路径都已选择', 'warning')
+    return false
+  }
+  
+  if (sourcePath === targetPath) {
+    showToastMessage('源路径和目标路径不能相同', 'warning')
+    return false
+  }
+  
+  return true
+}
+
+// ==================== 数据持久化 ====================
+/**
+ * 保存所有应用数据到 app_data.json
+ */
+async function saveAppData() {
   try {
-    await invoke('save_config', {
+    const appData = {
       config: {
         base_path: basePath.value,
         last_left_path: getSelectedPath(sourceSelections),
         last_source_selections: [...sourceSelections]
-      }
-    })
-  } catch (error) {
-    console.error('保存配置失败:', error)
-  }
-}
-
-async function loadConfig() {
-  try {
-    const config = await invoke('load_config')
-    console.log('加载的配置:', config)
-    
-    basePath.value = config.base_path || ''
-    
-    // 恢复上次的源账号选择
-    if (config.last_source_selections && config.last_source_selections.length > 0) {
-      console.log('恢复源账号选择:', config.last_source_selections)
-      for (let i = 0; i < config.last_source_selections.length && i < sourceSelections.length; i++) {
-        sourceSelections[i] = config.last_source_selections[i] || ''
-      }
-      console.log('恢复后的sourceSelections:', [...sourceSelections])
-    } else {
-      console.log('没有找到上次的源账号选择')
+      },
+      presets: { ...presets },
+      version: '3.0.0',
+      last_updated: new Date().toISOString()
     }
+    
+    await invoke('save_app_data', { data: appData })
+    console.log('应用数据保存成功')
   } catch (error) {
-    console.error('加载配置失败:', error)
+    console.error('保存应用数据失败:', error)
   }
 }
 
+/**
+ * 从 app_data.json 加载所有应用数据
+ */
+async function loadAppData() {
+  try {
+    const appData = await invoke('load_app_data')
+    console.log('加载的应用数据:', appData)
+    
+    // 加载配置
+    if (appData.config) {
+      basePath.value = appData.config.base_path || ''
+      
+      // 恢复源账号选择
+      if (appData.config.last_source_selections?.length > 0) {
+        console.log('恢复源账号选择:', appData.config.last_source_selections)
+        
+        for (let i = 0; i < Math.min(appData.config.last_source_selections.length, sourceSelections.length); i++) {
+          sourceSelections[i] = appData.config.last_source_selections[i] || ''
+        }
+        
+        console.log('恢复后的sourceSelections:', [...sourceSelections])
+      }
+    }
+    
+    // 加载预设
+    if (appData.presets) {
+      Object.assign(presets, appData.presets)
+      console.log('预设数据加载完成，共', Object.keys(presets).length, '个预设')
+    }
+    
+    // 显示版本信息（如果需要）
+    if (appData.version) {
+      console.log('数据文件版本:', appData.version)
+    }
+    
+  } catch (error) {
+    console.error('加载应用数据失败:', error)
+    // 如果加载失败，尝试创建默认数据文件
+    await saveAppData()
+  }
+}
+
+/**
+ * 保存应用配置（兼容性函数）
+ */
+async function saveConfig() {
+  await saveAppData()
+}
+
+/**
+ * 加载应用配置（兼容性函数）
+ */
+async function loadConfig() {
+  await loadAppData()
+}
+
+/**
+ * 保存预设数据（兼容性函数）
+ */
 async function savePresets() {
-  try {
-    await invoke('save_presets', { presets })
-  } catch (error) {
-    console.error('保存预设失败:', error)
-  }
+  await saveAppData()
 }
 
+/**
+ * 加载预设数据（兼容性函数）
+ */
 async function loadPresets() {
-  try {
-    const loadedPresets = await invoke('load_presets')
-    Object.assign(presets, loadedPresets)
-  } catch (error) {
-    console.error('加载预设失败:', error)
-  }
+  // 预设数据已在 loadAppData 中加载，这里不需要额外操作
 }
 
-// 恢复上次的源账号选择
+/**
+ * 恢复上次的源账号选择
+ */
 async function restoreLastSourceSelections() {
   try {
     console.log('开始恢复上次源账号选择:', sourceSelections)
     
-    // 逐级恢复选择并更新下级选项
+    // 逐级恢复选择并更新选项
     for (let i = 0; i < sourceSelections.length; i++) {
-      if (sourceSelections[i]) {
-        console.log(`恢复第${i}级选择: ${labels[i]} = ${sourceSelections[i]}`)
-        
-        // 更新下一级选项
-        if (i + 1 < labels.length) {
-          const path = getSelectedPath(sourceSelections, i + 1)
-          console.log(`获取第${i + 1}级选项，路径: ${path}`)
-          
-          try {
-            const subdirs = await invoke('get_subdirectories', { path })
-            console.log(`第${i + 1}级选项:`, subdirs)
-            
-            sourceOptions[i + 1].splice(0, sourceOptions[i + 1].length, ...subdirs)
-            targetOptions[i + 1].splice(0, targetOptions[i + 1].length, ...subdirs)
-          } catch (error) {
-            console.error(`恢复第${i + 1}级选项失败:`, error)
-            // 如果某一级失败，清空后续选择
-            for (let j = i + 1; j < sourceSelections.length; j++) {
-              sourceSelections[j] = ''
-            }
-            break
-          }
-        }
-      } else {
+      if (!sourceSelections[i]) {
         console.log(`第${i}级选择为空，停止恢复`)
         break
+      }
+      
+      console.log(`恢复第${i}级选择: ${labels[i]} = ${sourceSelections[i]}`)
+      
+      // 更新下一级选项
+      if (i + 1 < labels.length) {
+        const success = await restoreNextLevelOptions(i)
+        if (!success) break
       }
     }
     
@@ -982,27 +1139,61 @@ async function restoreLastSourceSelections() {
   }
 }
 
-// 窗口控制函数
+/**
+ * 恢复下一级选项
+ * @param {number} currentLevel - 当前层级
+ * @returns {boolean} 是否成功
+ */
+async function restoreNextLevelOptions(currentLevel) {
+  const nextLevel = currentLevel + 1
+  const path = getSelectedPath(sourceSelections, nextLevel)
+  
+  console.log(`获取第${nextLevel}级选项，路径: ${path}`)
+  
+  try {
+    const subdirs = await invoke('get_subdirectories', { path })
+    console.log(`第${nextLevel}级选项:`, subdirs)
+    
+    // 更新选项
+    sourceOptions[nextLevel].splice(0, sourceOptions[nextLevel].length, ...subdirs)
+    targetOptions[nextLevel].splice(0, targetOptions[nextLevel].length, ...subdirs)
+    
+    return true
+  } catch (error) {
+    console.error(`恢复第${nextLevel}级选项失败:`, error)
+    
+    // 清空后续选择
+    for (let j = nextLevel; j < sourceSelections.length; j++) {
+      sourceSelections[j] = ''
+    }
+    
+    return false
+  }
+}
+
+// ==================== 窗口控制 ====================
+/**
+ * 最小化窗口
+ */
 async function minimizeWindow() {
   try {
-    console.log('尝试最小化窗口')
     await appWindow.minimize()
     console.log('窗口最小化成功')
   } catch (error) {
     console.error('最小化窗口失败:', error)
-    ElMessage.error('最小化窗口失败')
+    showToastMessage('最小化窗口失败', 'error')
   }
 }
 
-
-
+/**
+ * 关闭窗口
+ */
 async function closeWindow() {
   try {
-    console.log('尝试关闭窗口')
     await appWindow.close()
   } catch (error) {
     console.error('关闭窗口失败:', error)
-    ElMessage.error('关闭窗口失败')
+    showToastMessage('关闭窗口失败', 'error')
   }
 }
 </script>
@@ -1678,3 +1869,162 @@ async function closeWindow() {
   color: #909399;
 }
 </style>
+/* 关于对话框
+样式 */
+.about-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.app-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.app-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.app-info .version {
+  margin: 0;
+  font-size: 14px;
+  color: #909399;
+  font-weight: 500;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin: 24px 0;
+  padding: 0 20px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.feature-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.feature-item span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.tech-stack {
+  margin: 24px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+}
+
+.tech-title {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tech-desc {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.description {
+  margin: 24px 0;
+  padding: 16px;
+  background: #f0f9ff;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.description p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.author-info {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.author-info p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.copyright {
+  font-size: 12px !important;
+  opacity: 0.7;
+}
+
+/* 帮助对话框样式 */
+.help-content {
+  line-height: 1.6;
+}
+
+.help-section {
+  margin-bottom: 24px;
+}
+
+.help-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.help-section p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.help-section ol,
+.help-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.help-section li {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.help-section code {
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  color: #e74c3c;
+}

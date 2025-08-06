@@ -1,6 +1,6 @@
-/* Apple Design System - 苹果官方设计语言 */
+/* 现代化设计系统 - 基于现代UI设计规范 */
 :root {
-  /* 苹果颜色系统 - 基于 Apple Human Interface Guidelines */
+  /* 现代化颜色系统 */
   --bg-primary: #f2f2f7;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f2f2f7;
@@ -15,7 +15,7 @@
   --fg-quaternary: #3c3c432e;
   --fg-placeholder: #3c3c434d;
   
-  /* 苹果系统色彩 */
+  /* 现代化系统色彩 */
   --blue: #007aff;
   --blue-light: rgba(0, 122, 255, 0.1);
   --green: #34c759;
@@ -41,25 +41,25 @@
   --brown: #a2845e;
   --brown-light: rgba(162, 132, 94, 0.1);
   
-  /* 苹果边框和分隔线 */
+  /* 现代化边框和分隔线 */
   --separator: #3c3c432e;
   --separator-opaque: #c6c6c8;
   --border-primary: rgba(60, 60, 67, 0.18);
   --border-secondary: rgba(60, 60, 67, 0.12);
   
-  /* 苹果阴影系统 */
+  /* 现代化阴影系统 */
   --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.12);
   --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-3: 0 10px 20px rgba(0, 0, 0, 0.1);
   --shadow-4: 0 25px 50px rgba(0, 0, 0, 0.15);
   --shadow-modal: 0 25px 50px rgba(0, 0, 0, 0.25);
   
-  /* 苹果字体系统 - SF Pro Display & SF Pro Text */
-  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
-  --font-family-mono: 'SF Mono', Monaco, 'Menlo', monospace;
-  --font-family-rounded: 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* 现代化字体系统 */
+  --font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+  --font-family-rounded: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   
-  /* 苹果字体大小系统 */
+  /* 现代化字体大小系统 */
   --font-size-caption2: 11px;
   --font-size-caption1: 12px;
   --font-size-footnote: 13px;
@@ -72,7 +72,7 @@
   --font-size-title1: 28px;
   --font-size-large-title: 34px;
   
-  /* 苹果字重系统 */
+  /* 现代化字重系统 */
   --font-weight-ultralight: 100;
   --font-weight-thin: 200;
   --font-weight-light: 300;
@@ -83,7 +83,7 @@
   --font-weight-heavy: 800;
   --font-weight-black: 900;
   
-  /* 苹果间距系统 - 基于 4pt 网格 */
+  /* 现代化间距系统 - 基于 4pt 网格 */
   --spacing-2: 2px;
   --spacing-4: 4px;
   --spacing-8: 8px;
@@ -96,7 +96,7 @@
   --spacing-48: 48px;
   --spacing-64: 64px;
   
-  /* 苹果圆角系统 */
+  /* 现代化圆角系统 */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -106,7 +106,7 @@
   --radius-3xl: 20px;
   --radius-full: 9999px;
   
-  /* 苹果动画系统 - 基于 Core Animation */
+  /* 现代化动画系统 */
   --timing-linear: cubic-bezier(0, 0, 1, 1);
   --timing-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
   --timing-ease-in: cubic-bezier(0.42, 0, 1, 1);
@@ -144,7 +144,7 @@ body {
   overflow: hidden;
 }
 
-/* 苹果卡片设计 - 基于 iOS/macOS 设计语言 */
+/* 现代化卡片设计 */
 .card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
@@ -164,7 +164,7 @@ body {
   border-color: var(--border-secondary);
 }
 
-/* 苹果按钮设计 - 基于 Apple Human Interface Guidelines */
+/* 现代化按钮设计 */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -237,7 +237,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* 苹果输入框设计 - 基于 iOS/macOS 表单控件 */
+/* 现代化输入框设计 */
 .input, .select {
   width: 100%;
   padding: var(--spacing-12) var(--spacing-16);
@@ -283,7 +283,7 @@ body {
   -moz-appearance: none;
 }
 
-/* 苹果列表设计 - 基于 iOS Table View / macOS List */
+/* 现代化列表设计 */
 .list {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
@@ -325,7 +325,7 @@ body {
   font-weight: var(--font-weight-semibold);
 }
 
-/* 苹果标题样式 - 基于 SF Pro Display 字体层次 */
+/* 现代化标题样式 */
 .title {
   font-size: var(--font-size-large-title);
   font-weight: var(--font-weight-bold);
