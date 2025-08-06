@@ -276,9 +276,9 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { invoke } from '@tauri-apps/api/tauri'
-import { open } from '@tauri-apps/api/dialog'
-import { appWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 
 // Element Plus 组件和图标
 import { 
@@ -287,6 +287,7 @@ import {
   Edit, Delete, Minus, Close
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+const appWindow = getCurrentWebviewWindow()
 
 // ==================== 常量定义 ====================
 const SELECTION_LABELS = ['账号', '大区', '区服', '角色']
@@ -521,7 +522,7 @@ async function onTargetChange(level) {
   
   // 如果当前级别有选择，更新下一级选项
   if (targetSelections[level] && level + 1 < labels.length) {
-    await updateNextLevelOptions(targetSelections, [targetOptions], null, level)
+    await updateNextLevelOptions(targetSelections, targetOptions, null, level)
   }
   
   console.log('目标账号选择处理完成')
@@ -545,11 +546,11 @@ function clearSubsequentLevels(selections, options, level) {
 /**
  * 更新下一级选项并自动选择
  * @param {Array} selections - 选择数组
- * @param {Array} sourceOpts - 源选项数组
- * @param {Array} targetOpts - 目标选项数组
+ * @param {Array} optionsArray - 选项数组
+ * @param {Array} targetOpts - 目标选项数组（可选）
  * @param {number} level - 当前层级
  */
-async function updateNextLevelOptions(selections, sourceOpts, targetOpts, level) {
+async function updateNextLevelOptions(selections, optionsArray, targetOpts, level) {
   const nextLevel = level + 1
   const path = getSelectedPath(selections, nextLevel)
   
@@ -559,8 +560,10 @@ async function updateNextLevelOptions(selections, sourceOpts, targetOpts, level)
     const subdirs = await invoke('get_subdirectories', { path })
     console.log(`获取到${subdirs.length}个子目录:`, subdirs)
     
-    // 更新选项
-    sourceOpts[nextLevel].splice(0, sourceOpts[nextLevel].length, ...subdirs)
+    // 更新选项数组
+    optionsArray[nextLevel].splice(0, optionsArray[nextLevel].length, ...subdirs)
+    
+    // 如果同时需要更新目标选项
     if (targetOpts && targetOpts[nextLevel]) {
       targetOpts[nextLevel].splice(0, targetOpts[nextLevel].length, ...subdirs)
     }
@@ -572,7 +575,7 @@ async function updateNextLevelOptions(selections, sourceOpts, targetOpts, level)
       
       // 递归更新下一级
       if (nextLevel + 1 < labels.length) {
-        await updateNextLevelOptions(selections, sourceOpts, targetOpts, nextLevel)
+        await updateNextLevelOptions(selections, optionsArray, targetOpts, nextLevel)
       }
     }
   } catch (error) {

@@ -1,64 +1,12 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
-    "beforeDevCommand": "vite",
     "beforeBuildCommand": "vite build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist"
+    "beforeDevCommand": "vite",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
   },
-  "package": {
-    "productName": "剑网3改键工具",
-    "version": "3.0.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "window": {
-        "all": false,
-        "close": true,
-        "hide": true,
-        "show": true,
-        "maximize": true,
-        "minimize": true,
-        "unmaximize": true,
-        "unminimize": true,
-        "startDragging": true
-      },
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "dialog": {
-        "all": false,
-        "open": true,
-        "message": true,
-        "ask": true,
-        "confirm": true
-      },
-      "fs": {
-        "all": false,
-        "readDir": true,
-        "readFile": true,
-        "writeFile": true,
-        "createDir": true,
-        "removeDir": true,
-        "removeFile": true,
-        "copyFile": true,
-        "exists": true,
-        "scope": ["**"]
-      }
-    },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.jx3.keymanager",
-      "icon": [
-        "icons/icon.ico"
-      ]
-    },
-    "security": {
-      "csp": null
-    },
+  "app": {
     "windows": [
       {
         "fullscreen": false,
@@ -72,6 +20,19 @@
         "decorations": false,
         "titleBarStyle": "Overlay"
       }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico"
     ]
-  }
+  },
+  "identifier": "com.jx3.keymanager",
+  "productName": "剑网3改键工具",
+  "version": "3.0.0"
 }
