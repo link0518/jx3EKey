@@ -1,19 +1,20 @@
 <template>
   <el-container class="app-container">
-    <!-- 顶部工具栏 -->
-    <el-header class="app-header" height="60px">
-      <div class="header-content">
-        <div class="header-left">
-          <h1 class="app-title">
-            <el-icon><VideoPlay /></el-icon>
-            剑网3改键工具
-          </h1>
+    <!-- 自定义标题栏 -->
+    <div class="custom-titlebar">
+      <div class="titlebar-content">
+        <div class="titlebar-title" data-tauri-drag-region>
+          <img src="/fox.svg" alt="狐狸" class="titlebar-icon" />
+          <span>毛毛狐改键工具</span>
         </div>
-        <div class="header-right">
-          <el-dropdown @command="handleCommand" trigger="click">
-            <el-button type="primary" :icon="Setting">
-              设置 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-button>
+        <div class="titlebar-controls">
+          <button class="titlebar-button minimize-btn" @click.stop="minimizeWindow">
+            <el-icon><Minus /></el-icon>
+          </button>
+          <el-dropdown @command="handleCommand" trigger="click" placement="bottom-end">
+            <button class="titlebar-button settings-btn" @click.stop>
+              <el-icon><Setting /></el-icon>
+            </button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="changeFolder" :icon="Folder">更改文件夹</el-dropdown-item>
@@ -22,10 +23,13 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
+          <button class="titlebar-button close-btn" @click.stop="closeWindow">
+            <el-icon><Close /></el-icon>
+          </button>
         </div>
       </div>
-    </el-header>
-
+    </div>
+    
     <!-- 主内容区 -->
     <el-main class="app-main">
       <el-row :gutter="20" class="main-row">
@@ -257,7 +261,7 @@
   <el-dialog
     v-model="showHelpDialog"
     :title="helpTitle"
-    width="600px"
+    width="680px"
     class="help-dialog"
   >
     <div class="help-content" v-html="helpContent"></div>
@@ -275,12 +279,13 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/tauri'
 import { open } from '@tauri-apps/api/dialog'
 import { message, ask, confirm } from '@tauri-apps/api/dialog'
+import { appWindow } from '@tauri-apps/api/window'
 
 // Element Plus 图标导入
 import { 
-  Setting, ArrowDown, Folder, QuestionFilled, InfoFilled,
+  Setting, Folder, QuestionFilled, InfoFilled,
   Upload, Download, Collection, DocumentAdd, Check, Document,
-  Edit, Delete, VideoPlay
+  Edit, Delete, Minus, Close
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -694,7 +699,7 @@ function showUsageHelp() {
   helpContent.value = `
     <div class="help-section">
       <h4>🎯 使用说明</h4>
-      <p>把exe文件放入到文件夹中执行，执行后会生成“last_path.json”和“presets.json”文件</p>
+      <p>把exe文件放入到文件夹中执行，执行后会生成“app_data.json”文件</p>
     </div>
     
     <div class="help-section">
@@ -732,33 +737,42 @@ function showAbout() {
   showHelpMenu.value = false
   helpTitle.value = '关于'
   helpContent.value = `
-    <div class="about-content">
-      <div class="app-info">
-        <h4>🎮 剑网3改键工具</h4>
-        <p><strong>版本：</strong>3.0.0 Tauri Edition</p>
-        <p><strong>作者：</strong>by 咕涌</p>
+    <div class="about-container">
+      <div class="app-header">
+        <div class="app-icon">⚔️</div>
+        <div class="app-info">
+          <h3>剑网3改键工具</h3>
+          <p class="version">v3.0.0 Tauri Edition</p>
+        </div>
       </div>
       
-      <div class="features">
-        <h4>✨ 主要特性</h4>
-        <ul>
-          <li>🚀 现代化界面设计</li>
-          <li>⚡ 高性能桌面应用</li>
-          <li>🔧 智能预设管理</li>
-          <li>🛡️ 安全的文件操作</li>
-        </ul>
+      <div class="feature-grid">
+        <div class="feature-item">
+          <div class="feature-icon">🚀</div>
+          <span>现代化界面</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <span>高性能应用</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🔧</div>
+          <span>智能预设</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🛡️</div>
+          <span>安全操作</span>
+        </div>
       </div>
       
-      <div class="developer">
-        <h4>👨‍💻 技术栈</h4>
-        <p>Vue 3 + Tauri + Rust</p>
-        <p>现代化跨平台桌面应用</p>
+      <div class="tech-stack">
+        <p class="tech-title">技术栈</p>
+        <p class="tech-desc">Vue 3 + Tauri + Rust</p>
       </div>
       
-      <div class="copyright">
-        <p style="text-align: center; margin-top: 16px; color: #718096; font-size: 12px;">
-          © 2025 剑网3改键工具. All rights reserved.
-        </p>
+      <div class="author-info">
+        <p>by 咕涌</p>
+        <p class="copyright">© 2025 All rights reserved</p>
       </div>
     </div>
   `
@@ -967,67 +981,162 @@ async function restoreLastSourceSelections() {
     console.error('恢复上次选择失败:', error)
   }
 }
+
+// 窗口控制函数
+async function minimizeWindow() {
+  try {
+    console.log('尝试最小化窗口')
+    await appWindow.minimize()
+    console.log('窗口最小化成功')
+  } catch (error) {
+    console.error('最小化窗口失败:', error)
+    ElMessage.error('最小化窗口失败')
+  }
+}
+
+
+
+async function closeWindow() {
+  try {
+    console.log('尝试关闭窗口')
+    await appWindow.close()
+  } catch (error) {
+    console.error('关闭窗口失败:', error)
+    ElMessage.error('关闭窗口失败')
+  }
+}
 </script>
 
 <style scoped>
+/* 自定义标题栏样式 */
+.custom-titlebar {
+  height: 32px;
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  -webkit-user-select: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.titlebar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 0 16px;
+}
+
+.titlebar-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1; /* 占据剩余空间作为拖拽区域 */
+  height: 100%;
+  cursor: default;
+}
+
+.titlebar-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  pointer-events: auto; /* 确保按钮可以接收点击事件 */
+}
+
+.titlebar-button {
+  width: 46px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  font-size: 12px;
+  pointer-events: auto; /* 确保按钮可以接收点击事件 */
+  z-index: 1001; /* 确保按钮在拖拽区域之上 */
+}
+
+.titlebar-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.titlebar-button.close-btn:hover {
+  background-color: #e81123;
+}
+
+.titlebar-button:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.titlebar-button.close-btn:active {
+  background-color: #c50e1f;
+}
+
+.titlebar-button.settings-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* 标题栏下拉菜单样式 */
+.titlebar-controls .el-dropdown {
+  height: 100%;
+}
+
+.titlebar-controls .el-dropdown .titlebar-button {
+  width: 46px;
+  height: 32px;
+}
+
 /* Element Plus 主题样式 */
 .app-container {
   min-height: 100vh;
   height: 800px;
   background: #f5f7fa;
+  padding-top: 52px; /* 为固定标题栏留出空间 */
 }
 
-.app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 100%;
-  padding: 0 20px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-}
-
-.app-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-}
 
 .app-main {
-  padding: 20px 24px 20px 24px;
+  padding: 20px 24px;
   background: #f5f7fa;
   overflow: hidden;
 }
 
 .main-row {
-  height: calc(100vh - 40px);
+  height: calc(100vh - 64px); /* 减去标题栏32px + padding-top 32px */
   overflow: hidden;
 }
 
 .config-card {
-  height: 100%;
+  height: 457.65px;
+  max-height: 457.65px; /* 设置最大高度防止延长 */
   border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
+
 
 .config-card :deep(.el-card__header) {
   background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
@@ -1096,35 +1205,57 @@ async function restoreLastSourceSelections() {
 }
 
 .preset-content {
-  padding: 20px 0;
+  padding: 0px 0 8px 0; /* 减小顶部padding，把提示框往上移 */
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  height: calc(457.65px - 50px); /* 减去header和padding的高度 */
 }
 
 .preset-hint {
-  margin-bottom: 16px;
-  border-radius: 8px;
+  margin-top: -4px; /* 添加负的顶部margin，继续上移 */
+  margin-bottom: 10px;
+  border-radius: 6px;
   flex-shrink: 0;
+}
+
+.preset-hint :deep(.el-alert__content) {
+  font-size: 15px; /* 缩小提示文字 */
+  padding: 0;
+}
+
+.preset-hint :deep(.el-alert__title) {
+  font-size: 14px; /* 缩小标题文字 */
+  margin: 0;
+}
+
+.preset-hint :deep(.el-alert) {
+  padding: 6px 8px; /* 缩小提示框内边距 */
 }
 
 .preset-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px; /* 进一步减小预设项目之间的间距 */
   min-height: 0;
+  max-height: calc(100% - 70px); /* 减去提示框的高度 */
+  margin-top: 8px; /* 把预设列表往下移8px，为悬停效果留出空间 */
   padding-right: 6px;
 }
 
 .preset-item {
   cursor: pointer;
   transition: all 0.3s ease;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 1px solid #e4e7ed;
+  flex-shrink: 0; /* 防止被压缩 */
+  margin-top: 4px;
+  min-height: 28px; /* 设置更小的最小高度 */
 }
 
 .preset-item:hover {
@@ -1136,19 +1267,29 @@ async function restoreLastSourceSelections() {
 .preset-item-content {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 4px 8px; /* 进一步减小内边距 */
+  min-height: 24px; /* 设置更小的内容高度 */
 }
 
 .preset-icon {
   color: #909399;
-  font-size: 16px;
+  font-size: 12px; /* 进一步减小图标尺寸 */
 }
 
 .preset-name {
   flex: 1;
   font-weight: 500;
   color: #303133;
+  font-size: 12px; /* 进一步减小文字尺寸 */
+  line-height: 1.2; /* 减小行高 */
+}
+
+.preset-item-content .el-tag {
+  font-size: 10px; /* 缩小标签文字 */
+  height: 18px; /* 缩小标签高度 */
+  line-height: 16px;
+  padding: 0 4px; /* 缩小标签内边距 */
 }
 
 /* 右键菜单样式 */
@@ -1203,65 +1344,232 @@ async function restoreLastSourceSelections() {
 
 /* 帮助对话框样式 */
 .help-dialog :deep(.el-dialog__body) {
-  max-height: 60vh;
+  max-height: 70vh;
   overflow-y: auto;
+  padding: var(--spacing-8);
 }
 
-.help-content {
-  line-height: 1.6;
-  color: #606266;
+.help-dialog :deep(.el-dialog__header) {
+  padding: var(--spacing-20) var(--spacing-24) var(--spacing-16);
+  border-bottom: 1px solid var(--separator);
 }
 
-.help-content h4 {
-  color: #303133;
-  margin: 16px 0 8px 0;
-  font-weight: 600;
+.help-dialog :deep(.el-dialog__title) {
+  font-size: var(--font-size-title3);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fg-primary);
+}
+
+/* 帮助页面样式 */
+.help-container {
+  padding: var(--spacing-8);
+}
+
+.help-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-24);
+  padding: var(--spacing-16);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  transition: all var(--duration-quick) var(--timing-ease-out);
+}
+
+.help-step:hover {
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-1px);
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  background: var(--blue);
+  color: white;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.help-content p, .help-content li {
-  margin-bottom: 8px;
-}
-
-.help-content ol, .help-content ul {
-  padding-left: 20px;
-  margin: 8px 0;
-}
-
-.help-content strong {
-  color: #303133;
-  font-weight: 600;
-}
-
-.about-content .app-info {
-  text-align: center;
-  margin-bottom: 20px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f0f2ff 0%, #f8f9ff 100%);
-  border-radius: 12px;
-  border: 1px solid #e4e7ed;
-}
-
-.about-content .app-info h4 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #303133;
-  margin-bottom: 12px;
   justify-content: center;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-callout);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-1);
 }
 
-.features, .developer {
-  margin-bottom: 20px;
+.step-content {
+  flex: 1;
 }
 
-.features ul {
-  padding-left: 20px;
+.step-content h4 {
+  margin: 0 0 var(--spacing-8) 0;
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fg-primary);
+  letter-spacing: -0.022em;
 }
 
-.features li, .developer p {
-  margin-bottom: 6px;
+.step-content p {
+  margin: 0 0 var(--spacing-8) 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-size-subheadline);
+  line-height: 1.5;
+}
+
+.step-content code {
+  display: block;
+  background: var(--bg-quaternary);
+  padding: var(--spacing-8) var(--spacing-12);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-footnote);
+  color: var(--blue);
+  border: 1px solid var(--border-secondary);
+  margin-top: var(--spacing-8);
+}
+
+.help-tips {
+  margin-top: var(--spacing-32);
+  padding: var(--spacing-20);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-primary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.tip-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-8) 0;
+  font-size: var(--font-size-subheadline);
+  color: var(--fg-secondary);
+}
+
+.tip-item:not(:last-child) {
+  border-bottom: 1px solid var(--separator);
+  margin-bottom: var(--spacing-8);
+  padding-bottom: var(--spacing-16);
+}
+
+.tip-item strong {
+  color: var(--fg-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 关于页面样式 */
+.about-container {
+  padding: var(--spacing-16);
+  text-align: center;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-32);
+  padding: var(--spacing-24);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--border-primary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.app-icon {
+  font-size: 48px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+.app-info h3 {
+  margin: 0 0 var(--spacing-4) 0;
+  font-size: var(--font-size-title2);
+  font-weight: var(--font-weight-bold);
+  color: var(--fg-primary);
+  letter-spacing: -0.022em;
+}
+
+.version {
+  margin: 0;
+  font-size: var(--font-size-footnote);
+  color: var(--fg-tertiary);
+  font-weight: var(--font-weight-medium);
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-32);
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-20);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-primary);
+  transition: all var(--duration-quick) var(--timing-ease-out);
+}
+
+.feature-item:hover {
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.feature-item span {
+  font-size: var(--font-size-footnote);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-secondary);
+}
+
+.tech-stack {
+  margin-bottom: var(--spacing-32);
+  padding: var(--spacing-20);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-primary);
+}
+
+.tech-title {
+  margin: 0 0 var(--spacing-8) 0;
+  font-size: var(--font-size-subheadline);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fg-primary);
+}
+
+.tech-desc {
+  margin: 0;
+  font-size: var(--font-size-footnote);
+  color: var(--fg-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.author-info {
+  padding: var(--spacing-16);
+  border-top: 1px solid var(--separator);
+}
+
+.author-info p {
+  margin: var(--spacing-4) 0;
+  font-size: var(--font-size-footnote);
+  color: var(--fg-secondary);
+}
+
+.copyright {
+  font-size: var(--font-size-caption1) !important;
+  color: var(--fg-tertiary) !important;
 }
 
 /* 响应式设计 */
@@ -1271,11 +1579,17 @@ async function restoreLastSourceSelections() {
   }
   
   .main-row {
-    height: auto;
+    height: calc(100vh - 64px); /* 减去标题栏和padding */
   }
   
   .config-card {
-    height: auto;
+    height: 457.65px;
+    max-height: 457.65px;
+  }
+  
+  .preset-card {
+    height: 457.65px !important;
+    max-height: 457.65px !important;
   }
 }
 
@@ -1284,42 +1598,52 @@ async function restoreLastSourceSelections() {
     padding: 10px;
   }
   
-  .header-content {
-    padding: 0 10px;
-  }
-  
-  .app-title {
-    font-size: 16px;
-  }
-  
   .config-form {
     padding: 10px 0;
   }
   
+  /* 帮助和关于页面响应式 */
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .app-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .help-step {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .step-number {
+    align-self: center;
+  }
+}
+  
   .preset-content {
     padding: 10px 0;
   }
-}
-</style>
-/* 滚动条样式
-优化 */
-.preset-list::-webkit-scrollbar {
-  width: 6px;
-}
+  
+  /* 滚动条样式优化 */
+  .preset-list::-webkit-scrollbar {
+    width: 8px;
+  }
 
-.preset-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 2px;
-}
+  .preset-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
 
-.preset-list::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 2px;
-}
+  .preset-list::-webkit-scrollbar-thumb {
+    background: #409eff;
+    border-radius: 4px;
+  }
 
-.preset-list::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
+  .preset-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
 
 /* 确保卡片内容不会溢出 */
 .config-card :deep(.el-card__body) {
@@ -1353,3 +1677,4 @@ async function restoreLastSourceSelections() {
   font-size: 13px;
   color: #909399;
 }
+</style>

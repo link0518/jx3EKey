@@ -15,7 +15,7 @@ tauri-build = { version = "1.5.0", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.5.0", features = [ "dialog-ask", "dialog-open", "fs-remove-dir", "fs-read-dir", "fs-create-dir", "fs-exists", "fs-write-file", "fs-copy-file", "fs-read-file", "dialog-message", "dialog-confirm", "fs-remove-file", "shell-open"] }
+tauri = { version = "1.5.0", features = [ "window-unmaximize", "window-show", "window-minimize", "window-hide", "window-start-dragging", "window-maximize", "window-unminimize", "window-close", "dialog-ask", "dialog-open", "fs-remove-dir", "fs-read-dir", "fs-create-dir", "fs-exists", "fs-write-file", "fs-copy-file", "fs-read-file", "dialog-message", "dialog-confirm", "fs-remove-file", "shell-open"] }
 
 [features]
 default = [ "custom-protocol" ]
